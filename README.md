@@ -12,6 +12,6 @@ MM-DD.html file into it.
 
 ## License
 
-Copyright © 2012 FIXME
+Copyright © 2012 John Gabriele <jmg3000@gmail.com>
 
 Distributed under the Eclipse Public License, the same as Clojure.
