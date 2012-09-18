@@ -6,6 +6,9 @@
 ;; ----------------------------------------------------------------------
 ;; TODO:
 ;;
+;;   * Ooof! Disentangle functions that extract timestamp, name, and comment
+;;     from functions that generate html for those things.
+;;
 ;;   * break the line if someone accidentally leans on their keyboard
 ;;     creating a disasterously-long line which the browser won't
 ;;     wrap.
@@ -30,38 +33,18 @@
                          "lazybot"     "#2D8C57"
                          })
 
-;; First user on for the day gets HotPink!
-(def all-other-colors ["HotPink"
-                       "RoyalBlue"
-                       "DarkCyan"
-                       "BlueViolet"
-                       "Brown"
-                       "Crimson"
-                       "DarkBlue"
-                       "DarkGreen"
-                       "DarkGoldenRod"
-                       "DarkMagenta"
-                       "CornflowerBlue"
-                       "DarkRed"
-                       "DarkSalmon"
-                       "DarkSlateBlue"
-                       "ForestGreen"
-                       "DarkOrchid"
-                       "GoldenRod"
-                       "LightCoral"
-                       "IndianRed"
-                       "Indigo"
-                       "Chocolate"
-                       "MediumSlateBlue"
-                       "LightSeaGreen"
-                       "MediumVioletRed"
-                       "Olive"
-                       "Orange"
-                       "SaddleBrown"
-                       "Orchid"
-                       "Purple"
-                       "SteelBlue"
-                       "Tomato"])
+(def all-other-colors ["#155A7C"
+                       "#911114"
+                       "#AB257F"
+                       "#592EAB"
+                       "#127950"
+                       "#625809"
+                       "#7726A0"
+                       "#2A50A4"
+                       "#59780C"
+                       "#0B7509"
+                       "#A222A7"
+                       "#127876"])
 
 (def base-url "http://www.raynes.me/logs/irc.freenode.net/")
 
@@ -71,41 +54,59 @@
 <title>irc log: {{title}}</title>
 <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />
 <style type=\"text/css\">
-body {background-color: #f8f8f8;}
+body {
+    background-color: #888;
+}
+
+#main-box {
+    width: 900px;
+    background-color: #f8f8f8;
+    margin: 20px auto 20px auto;
+    padding: 2px 20px 20px 20px;
+}
+
 table {
-    border: 1px solid #ddd;
     border-collapse: collapse;
     width: 100%;
 }
+
 th, tr, td {
-    border: 1px solid #ddd;
     padding: 2px;
 }
+
 td {
-    padding: 2px 4px 2px 4px;
+    vertical-align: top;
+    padding: 6px 4px 6px 4px;
 }
+
 th {
-    background-color: #eee;
+    background-color: #ddd;
 }
+
+a:link  { color: #555; }
+
 .timestamp { font-size: small; font-family: monospace; color: #888; }
-.timestamp a:link { color: #888; text-decoration: none; }
+.timestamp a:link  { text-decoration: none; color: #888; }
 .timestamp a:hover { text-decoration: underline; }
+
+.author { text-align: right; padding-right: 12px }
 .comment { font-style: italic; }
+
 .clojurebot, .lazybot { font-family: monospace; }
 .lazybot    { background-color: #D5F7E4; }
 .clojurebot { background-color: #DEE8FA; }
 </style>
+
 <body>
+<div id=\"main-box\">
 <h1>IRC Log for {{title}}</h1>
-<p><a href=\"../index.html\">Back to master index.</a></p>
-<p>(Non-custom colors used here, in this order: {{colors}}).</p>
-<br/>
+<p><a href=\"../index.html\">back to master index</a></p>
 <table>
-<tr><th>Time</th><th>Nick</th><th>Comment</th></tr>
 ")
 
 (def html-footer "
 </table>
+</div>
 </body>
 </html>
 ")
@@ -156,10 +157,7 @@ th {
   "`content` is one big long string --- the plain text
 content of the irc log."
   [outfilename title content user-colors]
-  (let [header      (str/replace html-header "{{title}}" title)
-        colors-demo (str/join "\n" (for [color all-other-colors]
-                                     (str "<span style=\"color:" color "\">" color "</span>")))
-        header      (str/replace header "{{colors}}" colors-demo)]
+  (let [header (str/replace html-header "{{title}}" title)]
     (spit outfilename
           (str header
                (parse-log content user-colors)
@@ -173,27 +171,44 @@ gives you back all the lines (big chunk of text) as rows
 in an html table."
   [log-text user-colors]
   (let [lines (str/split-lines log-text)
-        rows  (map #(rowify-line % user-colors) lines)]
+        ;; TODO: We need to remove the author name if the previous line was the same author.
+        ;; So, that means we need to know who posted the previous line.
+        rows  (map (fn [line prev-line] (rowify-line line
+                                                     prev-line
+                                                     user-colors))
+                   lines
+                   (cons "The elusive zeroth line!" lines))]
     (str/join "\n" rows)))
 
 (declare extract-time)
 (declare extract-author)
 (declare extract-comment)
+(declare extract-just-the-name)
 
 (defn rowify-line
-  [line user-colors]
-  (let [tr-id     (if-let [found-it (re-find #"^\[(\d\d:\d\d:\d\d)\]" line)]
-                    (found-it 1))
-        bot-name  (if-let [found-bot (re-find #"\[\d\d:\d\d:\d\d\] (lazybot|clojurebot): " line)]
-                    (found-bot 1))
-        id-in-tag (if tr-id (str " id=\"" tr-id "\" "))
-        cl-in-tag (if bot-name (str " class=\"" bot-name "\" "))]
+  [line prev-line user-colors]
+  ;;    the table-row id (which is the timestamp)
+  (let [tr-id          (if-let [found-it (re-find #"^\[(\d\d:\d\d:\d\d)\]" line)]
+                         (found-it 1))
+        bot-name       (if-let [found-bot (re-find #"\[\d\d:\d\d:\d\d\] (lazybot|clojurebot): " line)]
+                         (found-bot 1))
+        id-in-tag      (if tr-id (str " id=\"" tr-id "\" "))
+        cl-in-tag      (if bot-name (str " class=\"" bot-name "\" "))
+        prev-line-name (extract-just-the-name prev-line)
+        this-line-name (extract-just-the-name line)]
     ;; There are some rare cases where there's no timestamp.
     ;; Shield you eyes:
     (str "<tr" id-in-tag cl-in-tag ">"
          "<td><span class=\"timestamp\">" (if tr-id (str "<a href=\"#" tr-id "\">")) (extract-time line) (if tr-id "</a>") "</span></td>"
-         "<td>" (extract-author  line user-colors) "</td>"
+         "<td class=\"author\">" (if (= this-line-name prev-line-name) "&nbsp;" (extract-author line user-colors)) "</td>"
          "<td>" (extract-comment line user-colors) "</td></tr>")))
+
+(defn extract-just-the-name
+  [line]
+  (if-let [found (re-find #"\[\d\d:\d\d:\d\d\] ([\w_|^`\\-]+): " line)]
+    (found 1)
+    (if-let [found (re-find #"\[\d\d:\d\d:\d\d\] \*([\w_|^`\\-]+) " line)]
+      (found 1))))
 
 (defn extract-time
   [line]
@@ -204,10 +219,10 @@ in an html table."
   [line user-colors]
   (if-let [found (re-find #"^\[\d\d:\d\d:\d\d\] ([\w_|^`\\-]+): " line)]
     (let [uname (found 1)]
-      (str "<span style=\"color:" (user-colors uname) "\">" uname "</span>"))
+      (str "<span style=\"color:" (user-colors uname) "\">" uname ":</span>"))
     (if-let [found2 (re-find #"^\[\d\d:\d\d:\d\d\] \*([\w_|^`\\-]+) " line)]
       (let [uname (found2 1)]
-        (str "<span class=\"comment\" style=\"color:" (user-colors uname) "\">* " uname "</span>"))
+        (str "<span class=\"comment\" style=\"color:" (user-colors uname) "\">* " uname ":</span>"))
       ;; Otherwise, we can't find a username. Just leave this field blank.
       "&nbsp;")))
 
@@ -232,4 +247,4 @@ in an html table."
   [text]
   (str/replace text
                #"(https?://\S+)"
-               "<a href=\"$1\">$1</a>"))
+               "<i><a href=\"$1\">$1</a></i>"))
