@@ -171,11 +171,12 @@ gives you back all the lines (big chunk of text) as rows
 in an html table."
   [log-text user-colors]
   (let [lines (str/split-lines log-text)
-        ;; TODO: We need to remove the author name if the previous line was the same author.
-        ;; So, that means we need to know who posted the previous line.
-        rows  (map (fn [line prev-line] (rowify-line line
-                                                     prev-line
-                                                     user-colors))
+        ;; We need to know who posted the previous line, so we can remove the author name
+        ;; in this line if it's the same name.
+        rows  (map (fn [line prev-line]
+                     (rowify-line line
+                                  prev-line
+                                  user-colors))
                    lines
                    (cons "The elusive zeroth line!" lines))]
     (str/join "\n" rows)))
