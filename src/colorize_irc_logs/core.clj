@@ -89,7 +89,7 @@ a:link  { color: #555; }
 .timestamp a:link  { text-decoration: none; color: #888; }
 .timestamp a:hover { text-decoration: underline; }
 
-.author { text-align: right; padding-right: 12px }
+.author { text-align: right; padding-right: 12px; font-weight: bold; }
 .comment { font-style: italic; }
 
 .clojurebot, .lazybot { font-family: monospace; }
