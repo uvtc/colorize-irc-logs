@@ -30,7 +30,7 @@
 ;; put in two (one for "foo" and one for "foo`" or "foo_") if you feel
 ;; compelled to.
 (def custom-user-colors {"clojurebot"  "#375A99"
-                         "lazybot"     "#2D8C57"
+                         "lazybot"     "#2C8152"
                          })
 
 (def all-other-colors ["#155A7C"
@@ -93,7 +93,7 @@ a:link  { color: #555; }
 .comment { font-style: italic; }
 
 .clojurebot, .lazybot { font-family: monospace; }
-.lazybot    { background-color: #D5F7E4; }
+.lazybot    { background-color: #E1F6EA; }
 .clojurebot { background-color: #DEE8FA; }
 </style>
 
