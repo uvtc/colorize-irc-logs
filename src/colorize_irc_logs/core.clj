@@ -119,14 +119,20 @@ a:link  { color: #555; }
   "Expects 2 args: the channel name and the date in YYYY-MM-DD format."
   [& args]
   (let [channel     (first args)
+        ;; _           (println "Channel:" channel)
         date        (second args)
+        ;; _           (println "Date:" date)
         infilename  (str date ".txt")
+        ;; _           (println "Infile name:" infilename)
+        ;; "YYYY-MM-DD" --> "YYYY/MM-DD.html"
         outfilename (str (subs date 0 4)
                          "/"
-                         (subs (str date ".html") 5)) ;; "YYYY/MM-DD.html".
+                         (subs (str date ".html") 5))
+        ;; _           (println "Outfile name:" outfilename)
         url         (str base-url channel "/" infilename)
         content     (if (.exists (java.io.File. infilename))
-                      (slurp infilename)
+                      (do (println (str "Found and will use local file: " infilename))
+                          (slurp infilename))
                       (slurp url))
         all-users   (parse-out-all-users content)
         user-colors (assign-colors-to-users all-users
@@ -151,7 +157,7 @@ a:link  { color: #555; }
                  (cycle colors))
          custom-user-colors))
 
-(declare parse-log)
+(declare parse-out-table-rows)
 
 (defn render-log-as-html
   "`content` is one big long string --- the plain text
@@ -160,19 +166,20 @@ content of the irc log."
   (let [header (str/replace html-header "{{title}}" title)]
     (spit outfilename
           (str header
-               (parse-log content user-colors)
+               (parse-out-table-rows content
+                                     user-colors)
                html-footer))))
 
 (declare rowify-line)
 
-(defn parse-log
-  "You pass it a big chunk of plain text irc log, and it
+(defn parse-out-table-rows
+  "You pass in a big chunk of plain text irc log, and it
 gives you back all the lines (big chunk of text) as rows
 in an html table."
   [log-text user-colors]
   (let [lines (str/split-lines log-text)
-        ;; We need to know who posted the previous line, so we can remove the author name
-        ;; in this line if it's the same name.
+        ;; We need to know who posted the previous line so we can
+        ;; remove the author name in this line if it's the same name.
         rows  (map (fn [line prev-line]
                      (rowify-line line
                                   prev-line
@@ -187,6 +194,8 @@ in an html table."
 (declare extract-just-the-name)
 
 (defn rowify-line
+  "Pass in a plain text irc log line, and it gets converted to
+an html row (which would go into a table)."
   [line prev-line user-colors]
   ;;    the table-row id (which is the timestamp)
   (let [tr-id          (if-let [found-it (re-find #"^\[(\d\d:\d\d:\d\d)\]" line)]
@@ -213,8 +222,9 @@ in an html table."
 
 (defn extract-time
   [line]
-  (str (or ((re-find #"^\[(\d\d:\d\d:\d\d)\]" line) 1)
-           "&nbsp;")))
+  (if-let [found (re-find #"^\[(\d\d:\d\d:\d\d)\]" line)]
+    (found 1)
+    "&nbsp;"))
 
 (defn extract-author
   [line user-colors]
