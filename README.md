@@ -1,6 +1,6 @@
 # colorize-irc-logs
 
-Colorize the #clojure at freenode irc logs that Raynes makes
+Colorize the #clojure (and other) freenode irc logs that Raynes makes
 available.
 
 
@@ -8,7 +8,7 @@ available.
 
 Use `lein uberjar`, then:
 
-    $ java -jar colorize-irc-logs-0.1.0-standalone.jar clojure YYYY-MM-DD
+    $ java -jar ~/bin/colorize-irc-logs-0.1.0-standalone.jar clojure YYYY-MM-DD
 
 It expects a YYYY dir in the current directory, and writes a
 MM-DD.html file into it.
