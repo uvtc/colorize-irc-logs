@@ -21,7 +21,7 @@ And now have a look at some colorized logs:
 
 ```bash
 cd ~/temp
-mkdir 2012  # It expects a YYYY dir in the current directory.
+mkdir 2012  # The program expects a "YYYY" dir in the current directory.
 java -jar ~/bin/colorize-irc-logs-0.1.0-standalone.jar clojure 2012-MM-DD
 ls -l 2012
 ```
